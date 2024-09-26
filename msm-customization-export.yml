@@ -1,0 +1,72 @@
+# 'Allow scripts to access the OAuth token' was selected in pipeline.  Add the following YAML to any steps requiring access:
+#       env:
+#           MY_ACCESS_TOKEN: $(System.AccessToken)
+jobs:
+- job: Job_1
+  displayName: Agent job 1
+  pool:
+    vmImage: windows-2019
+  steps:
+  - checkout: self
+    fetchDepth: 1
+    persistCredentials: True
+  - task: microsoft-IsvExpTools.PowerPlatform-BuildTools.tool-installer.PowerPlatformToolInstaller@2
+    displayName: 'Power Platform Tool Installer '
+  - task: microsoft-IsvExpTools.PowerPlatform-BuildTools.publish-customizations.PowerPlatformPublishCustomizations@2
+    displayName: 'Power Platform Publish Customizations '
+    inputs:
+      authenticationType: PowerPlatformSPN
+      PowerPlatformSPN: 528756a6-acaf-4b18-987e-28b93c8421f7
+  - task: microsoft-IsvExpTools.PowerPlatform-BuildTools.export-solution.PowerPlatformExportSolution@2
+    displayName: Power Platform Export Solution - Unmanaged
+    inputs:
+      authenticationType: PowerPlatformSPN
+      PowerPlatformSPN: 528756a6-acaf-4b18-987e-28b93c8421f7
+      SolutionName: MSMCustomizations
+      SolutionOutputFile: $(Build.ArtifactStagingDirectory)\solution.zip
+  - task: microsoft-IsvExpTools.PowerPlatform-BuildTools.export-solution.PowerPlatformExportSolution@2
+    displayName: Power Platform Export Solution - Managed
+    inputs:
+      authenticationType: PowerPlatformSPN
+      PowerPlatformSPN: 528756a6-acaf-4b18-987e-28b93c8421f7
+      SolutionName: MSMCustomizations
+      SolutionOutputFile: $(Build.ArtifactStagingDirectory)\solution_managed.zip
+      Managed: true
+  - task: microsoft-IsvExpTools.PowerPlatform-BuildTools.unpack-solution.PowerPlatformUnpackSolution@2
+    displayName: 'Power Platform Unpack Solution '
+    inputs:
+      SolutionInputFile: $(Build.ArtifactStagingDirectory)\solution.zip
+      SolutionTargetFolder: $(Build.SourcesDirectory)\solution
+      SolutionType: Both
+  - task: microsoft-IsvExpTools.PowerPlatform-BuildTools.export-data.PowerPlatformExportData@2
+    displayName: 'Power Platform Export Data '
+    inputs:
+      authenticationType: PowerPlatformSPN
+      PowerPlatformSPN: 528756a6-acaf-4b18-987e-28b93c8421f7
+      SchemaFile: settings/export-schema.xml
+      DataFile: data/configuration.zip
+      Overwrite: true
+  - task: CmdLine@2
+    displayName: Command Line Script
+    inputs:
+      script: >-
+        echo commit all changes
+
+
+        git config user.email “gokselo@mc4sresearch.onmicrosoft.com”
+
+
+        git config user.name "gokselo"
+
+
+        git checkout -B main
+
+
+        git add --all
+
+
+        git commit -m "code commit"
+
+
+        git push --set-upstream origin main
+...
